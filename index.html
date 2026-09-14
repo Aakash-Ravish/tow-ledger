@@ -302,12 +302,33 @@
 
       <div class="field">
         <label>Job type / distance band</label>
-        <div class="band-group" id="bandGroup" role="radiogroup" aria-label="Job type"><label class="band-chip"><input type="radio" name="band" value="attend"><span><b>Attend only</b><em>$61.60 flat</em></span></label><label class="band-chip"><input type="radio" name="band" value="0-25" checked><span><b>0–25 km</b><em>$110.73 flat</em></span></label><label class="band-chip"><input type="radio" name="band" value="26-50"><span><b>26–50 km</b><em>$137.68 flat</em></span></label><label class="band-chip"><input type="radio" name="band" value="51-100"><span><b>51–100 km</b><em>$4.49/km</em></span></label><label class="band-chip"><input type="radio" name="band" value="101+"><span><b>101+ km</b><em>$3.82/km</em></span></label></div>
+        <div class="band-group" id="bandGroup" role="radiogroup" aria-label="Job type"></div>
       </div>
 
       <div class="field" id="kmInTowField" hidden>
         <label for="kmInTow">Distance in tow (km) — sets the price</label>
         <input type="number" id="kmInTow" min="0" step="0.1" inputmode="decimal">
+      </div>
+
+      <div class="field" id="fixedAmountField" hidden>
+        <label for="fixedAmount">Amount ($, incl. GST)</label>
+        <input type="number" id="fixedAmount" min="0" step="0.01" inputmode="decimal">
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label for="fromSuburb">From (suburb)</label>
+          <input type="text" id="fromSuburb" placeholder="Pickup suburb">
+        </div>
+        <div class="field">
+          <label for="toSuburb">To (suburb)</label>
+          <input type="text" id="toSuburb" placeholder="Drop-off suburb">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="jobDriver">Driver</label>
+        <input type="text" id="jobDriver" list="driverList" placeholder="Who did the job">
       </div>
 
       <div class="row2">
@@ -362,12 +383,19 @@
       </div>
 
       <div class="field">
+        <label for="expDriver">Driver (optional)</label>
+        <input type="text" id="expDriver" list="driverList" placeholder="Whose expense">
+      </div>
+
+      <div class="field">
         <label for="expNote">Note</label>
         <input type="text" id="expNote" placeholder="Optional">
       </div>
 
       <button type="submit" class="btn">Add expense</button>
     </form>
+
+    <datalist id="driverList"></datalist>
   </div>
 
   <details class="rate-card">
@@ -388,7 +416,7 @@
       <table class="data">
         <thead>
           <tr>
-            <th>Date</th><th>Type</th><th class="num">Km tow</th><th class="num">Km driven</th>
+            <th>Date</th><th>Driver</th><th>From</th><th>To</th><th>Type</th><th class="num">Km tow</th><th class="num">Km driven</th>
             <th class="num">Hours</th><th class="num">Wait</th><th class="num">Total</th><th>Notes</th><th></th>
           </tr>
         </thead>
@@ -400,7 +428,7 @@
     <div class="table-scroll">
       <table class="data">
         <thead>
-          <tr><th>Date</th><th>Category</th><th class="num">Amount</th><th>Note</th><th></th></tr>
+          <tr><th>Date</th><th>Category</th><th class="num">Amount</th><th>Driver</th><th>Note</th><th></th></tr>
         </thead>
         <tbody id="expensesBody"><tr class="empty-row"><td colspan="5">No expenses logged for this week yet.</td></tr></tbody>
       </table>
@@ -480,7 +508,8 @@
     { key:"0-25",   label:"0–25 km",    sub:"$"+RATES.band0_25.toFixed(2)+" flat", type:"flat", rate:RATES.band0_25 },
     { key:"26-50",  label:"26–50 km",   sub:"$"+RATES.band26_50.toFixed(2)+" flat", type:"flat", rate:RATES.band26_50 },
     { key:"51-100", label:"51–100 km",  sub:"$"+RATES.band51_100PerKm.toFixed(2)+"/km", type:"perkm", rate:RATES.band51_100PerKm },
-    { key:"101+",   label:"101+ km",         sub:"$"+RATES.band101PlusPerKm.toFixed(2)+"/km", type:"perkm", rate:RATES.band101PlusPerKm }
+    { key:"101+",   label:"101+ km",         sub:"$"+RATES.band101PlusPerKm.toFixed(2)+"/km", type:"perkm", rate:RATES.band101PlusPerKm },
+    { key:"fixed",  label:"Fixed / other",   sub:"enter amount", type:"fixed", rate:0 }
   ];
   function bandByKey(k){ for (var i=0;i<BANDS.length;i++){ if (BANDS[i].key===k) return BANDS[i]; } return BANDS[1]; }
 
@@ -508,6 +537,10 @@
 
   function computeJobPrice(job){
     var band = bandByKey(job.band);
+    if (band.type === "fixed"){
+      var fixed = round2(Number(job.fixedAmount)||0);
+      return { base: fixed, waitBlocks: 0, waitFee: 0, total: fixed };
+    }
     var base = band.type === "flat" ? band.rate : (Number(job.kmInTow)||0) * band.rate;
     var wm = Number(job.waitMinutes) || 0;
     var waitBlocks = 0, waitFee = 0;
@@ -526,10 +559,21 @@
     : null;
 
   function mapJobFromDb(r){
-    return { id:r.id, date:r.date, band:r.band, kmInTow:Number(r.km_in_tow)||0, kmDriven:Number(r.km_driven)||0, hours:Number(r.hours)||0, waitMinutes:Number(r.wait_minutes)||0, notes:r.notes||"" };
+    return { id:r.id, date:r.date, band:r.band, kmInTow:Number(r.km_in_tow)||0, kmDriven:Number(r.km_driven)||0, hours:Number(r.hours)||0, waitMinutes:Number(r.wait_minutes)||0, notes:r.notes||"", driver:r.driver||"", fromSuburb:r.from_suburb||"", toSuburb:r.to_suburb||"", fixedAmount:Number(r.fixed_amount)||0 };
   }
   function mapExpenseFromDb(r){
-    return { id:r.id, date:r.date, category:r.category, amount:Number(r.amount)||0, note:r.note||"" };
+    return { id:r.id, date:r.date, category:r.category, amount:Number(r.amount)||0, note:r.note||"", driver:r.driver||"" };
+  }
+  function knownDrivers(){
+    var set = {};
+    state.jobs.forEach(function(j){ if (j.driver) set[j.driver] = true; });
+    state.expenses.forEach(function(e){ if (e.driver) set[e.driver] = true; });
+    return Object.keys(set).sort();
+  }
+  function renderDriverList(){
+    document.getElementById("driverList").innerHTML = knownDrivers().map(function(d){
+      return '<option value="'+escapeHtml(d)+'">';
+    }).join("");
   }
   function showNotice(id, show){ document.getElementById(id).hidden = !show; }
   function showError(message){
@@ -559,7 +603,7 @@
 
   function jobRowsFragment(jobs){
     if (!jobs.length){
-      return '<tr class="empty-row"><td colspan="9">No jobs logged for this week yet.</td></tr>';
+      return '<tr class="empty-row"><td colspan="12">No jobs logged for this week yet.</td></tr>';
     }
     return jobs.slice().sort(function(a,b){ return a.date < b.date ? 1 : -1; }).map(function(j){
       var band = bandByKey(j.band);
@@ -567,6 +611,9 @@
       var kmTow = band.type === "perkm" ? (Number(j.kmInTow)||0).toLocaleString("en-AU",{maximumFractionDigits:1}) : "—";
       return '<tr data-id="'+j.id+'">' +
         '<td>'+fmtDateLabel(j.date)+'</td>' +
+        '<td>'+escapeHtml(j.driver||"—")+'</td>' +
+        '<td>'+escapeHtml(j.fromSuburb||"—")+'</td>' +
+        '<td>'+escapeHtml(j.toSuburb||"—")+'</td>' +
         '<td>'+escapeHtml(band.label)+'</td>' +
         '<td class="num">'+kmTow+'</td>' +
         '<td class="num">'+(Number(j.kmDriven)||0).toLocaleString("en-AU",{maximumFractionDigits:1})+'</td>' +
@@ -581,13 +628,14 @@
 
   function expenseRowsFragment(expenses){
     if (!expenses.length){
-      return '<tr class="empty-row"><td colspan="5">No expenses logged for this week yet.</td></tr>';
+      return '<tr class="empty-row"><td colspan="6">No expenses logged for this week yet.</td></tr>';
     }
     return expenses.slice().sort(function(a,b){ return a.date < b.date ? 1 : -1; }).map(function(e){
       return '<tr data-id="'+e.id+'">' +
         '<td>'+fmtDateLabel(e.date)+'</td>' +
         '<td>'+escapeHtml(e.category)+'</td>' +
         '<td class="num">'+fmtMoney(Number(e.amount)||0)+'</td>' +
+        '<td>'+escapeHtml(e.driver||"—")+'</td>' +
         '<td class="wrap">'+escapeHtml(e.note||"")+'</td>' +
         '<td><button class="del-btn" type="button" data-del-exp="'+e.id+'" aria-label="Delete expense">×</button></td>' +
         '</tr>';
@@ -769,6 +817,7 @@
     document.getElementById("expensesBody").innerHTML = expenseRowsFragment(ctx.expenses);
     document.getElementById("nextWeek").disabled = weekOffset >= 0;
 
+    renderDriverList();
     attachRowHandlers();
     updateJobPreview();
   }
@@ -790,15 +839,19 @@
   function updateJobPreview(){
     var band = bandByKey(selectedBandKey());
     document.getElementById("kmInTowField").hidden = band.type !== "perkm";
+    document.getElementById("fixedAmountField").hidden = band.type !== "fixed";
     var draft = {
       band: band.key,
       kmInTow: document.getElementById("kmInTow").value,
-      waitMinutes: document.getElementById("waitMinutes").value
+      waitMinutes: document.getElementById("waitMinutes").value,
+      fixedAmount: document.getElementById("fixedAmount").value
     };
     var price = computeJobPrice(draft);
     var lines = [];
     if (band.type === "perkm"){
       lines.push((Number(draft.kmInTow)||0)+' km × $'+band.rate.toFixed(2)+' = '+fmtMoney(price.base));
+    } else if (band.type === "fixed"){
+      lines.push('Fixed amount entered');
     } else {
       lines.push('Flat rate: '+fmtMoney(price.base));
     }
@@ -839,7 +892,9 @@
     if (!sb) return;
     sb.from("jobs").insert({
       date: job.date, band: job.band, km_in_tow: job.kmInTow, km_driven: job.kmDriven,
-      hours: job.hours, wait_minutes: job.waitMinutes, notes: job.notes
+      hours: job.hours, wait_minutes: job.waitMinutes, notes: job.notes,
+      driver: job.driver || "", from_suburb: job.fromSuburb || "", to_suburb: job.toSuburb || "",
+      fixed_amount: job.fixedAmount || 0
     }).then(function(res){
       if (res.error){ showError(res.error.message); if (onDone) onDone(); return; }
       loadData();
@@ -856,7 +911,7 @@
   function addExpense(exp, onDone){
     if (!sb) return;
     sb.from("expenses").insert({
-      date: exp.date, category: exp.category, amount: exp.amount, note: exp.note
+      date: exp.date, category: exp.category, amount: exp.amount, note: exp.note, driver: exp.driver || ""
     }).then(function(res){
       if (res.error){ showError(res.error.message); if (onDone) onDone(); return; }
       loadData();
@@ -885,6 +940,7 @@
     });
     document.getElementById("kmDriven").addEventListener("input", function(){ this.dataset.userEdited = "1"; });
     document.getElementById("waitMinutes").addEventListener("input", updateJobPreview);
+    document.getElementById("fixedAmount").addEventListener("input", updateJobPreview);
 
     document.getElementById("jobForm").addEventListener("submit", function(ev){
       ev.preventDefault();
@@ -893,6 +949,10 @@
         date: document.getElementById("jobDate").value || todayStr(),
         band: band.key,
         kmInTow: Number(document.getElementById("kmInTow").value) || 0,
+        fixedAmount: Number(document.getElementById("fixedAmount").value) || 0,
+        fromSuburb: document.getElementById("fromSuburb").value.trim(),
+        toSuburb: document.getElementById("toSuburb").value.trim(),
+        driver: document.getElementById("jobDriver").value.trim(),
         kmDriven: Number(document.getElementById("kmDriven").value) || 0,
         hours: Number(document.getElementById("hoursWorked").value) || 0,
         waitMinutes: Number(document.getElementById("waitMinutes").value) || 0,
@@ -916,6 +976,7 @@
         date: document.getElementById("expDate").value || todayStr(),
         category: document.getElementById("expCategory").value,
         amount: Number(document.getElementById("expAmount").value) || 0,
+        driver: document.getElementById("expDriver").value.trim(),
         note: document.getElementById("expNote").value.trim()
       };
       var submitBtn = ev.target.querySelector('button[type="submit"]');
