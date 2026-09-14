@@ -269,6 +269,7 @@
   <div class="tab-bar" role="tablist" aria-label="View">
     <button class="tab-btn" id="tabLedger" type="button" role="tab" aria-selected="true">Ledger</button>
     <button class="tab-btn" id="tabDashboard" type="button" role="tab" aria-selected="false">Dashboard</button>
+    <button class="tab-btn" id="tabDayFilter" type="button" role="tab" aria-selected="false">Day filter</button>
   </div>
 
   <section id="ledgerView">
@@ -306,8 +307,8 @@
       </div>
 
       <div class="field" id="kmInTowField" hidden>
-        <label for="kmInTow">Distance in tow (km) — sets the price</label>
-        <input type="number" id="kmInTow" min="0" step="0.1" inputmode="decimal">
+        <label for="kmInTow">Distance in tow (km) — sets zone &amp; price automatically</label>
+        <input type="number" id="kmInTow" min="0" step="0.1" inputmode="decimal" value="0">
       </div>
 
       <div class="field" id="fixedAmountField" hidden>
@@ -328,7 +329,7 @@
 
       <div class="field">
         <label for="jobDriver">Driver</label>
-        <input type="text" id="jobDriver" list="driverList" placeholder="Who did the job">
+        <input type="text" id="jobDriver" list="driverList" placeholder="Who did the job" value="Vikas">
       </div>
 
       <div class="row2">
@@ -384,7 +385,7 @@
 
       <div class="field">
         <label for="expDriver">Driver (optional)</label>
-        <input type="text" id="expDriver" list="driverList" placeholder="Whose expense">
+        <input type="text" id="expDriver" list="driverList" placeholder="Whose expense" value="Vikas">
       </div>
 
       <div class="field">
@@ -471,6 +472,17 @@
 
   </section>
 
+  <section id="dayFilterView" hidden>
+    <div class="panel">
+      <h2>Single day lookup</h2>
+      <div class="field" style="max-width:220px;">
+        <label for="dayFilterDate">Date</label>
+        <input type="date" id="dayFilterDate">
+      </div>
+    </div>
+    <section class="stats" id="dayFilterStats" aria-label="Single day summary"></section>
+  </section>
+
   <p class="foot-note">Weeks run Monday–Sunday. Rates shown are the ones baked into this calculator — edit the code to update them if they change.</p>
 </div>
 
@@ -512,6 +524,12 @@
     { key:"fixed",  label:"Fixed / other",   sub:"enter amount", type:"fixed", rate:0 }
   ];
   function bandByKey(k){ for (var i=0;i<BANDS.length;i++){ if (BANDS[i].key===k) return BANDS[i]; } return BANDS[1]; }
+  function bandKeyForKm(km){
+    if (km <= 25) return "0-25";
+    if (km <= 50) return "26-50";
+    if (km <= 100) return "51-100";
+    return "101+";
+  }
 
   var currencyFmt = new Intl.NumberFormat("en-AU", { style:"currency", currency:"AUD" });
   function fmtMoney(n){ return currencyFmt.format(round2(n)); }
@@ -793,12 +811,38 @@
     document.getElementById("categoryBreakdown").innerHTML = barListFragment(categoryBreakdown(weeks), "var(--chart-b)", fmtMoney);
   }
 
+  function dayFilterFragment(dateStr){
+    var jobs = state.jobs.filter(function(j){ return j.date === dateStr; });
+    var expenses = state.expenses.filter(function(e){ return e.date === dateStr; });
+    var revenue = jobs.reduce(function(s,j){ return s + computeJobPrice(j).total; }, 0);
+    var expenseTotal = expenses.reduce(function(s,e){ return s + (Number(e.amount)||0); }, 0);
+    var net = revenue - expenseTotal;
+    var tiles = [
+      { label:"Jobs done", value:String(jobs.length), cls:"" },
+      { label:"Revenue", value:fmtMoney(revenue), cls:"success" },
+      { label:"Expenses", value:fmtMoney(expenseTotal), cls:"danger" },
+      { label:"Net", value:fmtMoney(net), cls: net>=0 ? "success" : "danger" }
+    ];
+    return tiles.map(function(t){
+      return '<div class="stat '+t.cls+'"><span class="label">'+t.label+'</span><span class="value num">'+t.value+'</span></div>';
+    }).join("");
+  }
+
+  function renderDayFilter(){
+    var dateInput = document.getElementById("dayFilterDate");
+    if (!dateInput.value) dateInput.value = todayStr();
+    document.getElementById("dayFilterStats").innerHTML = dayFilterFragment(dateInput.value);
+  }
+
   function showTab(tab){
     document.getElementById("ledgerView").hidden = tab !== "ledger";
     document.getElementById("dashboardView").hidden = tab !== "dashboard";
+    document.getElementById("dayFilterView").hidden = tab !== "day";
     document.getElementById("tabLedger").setAttribute("aria-selected", String(tab === "ledger"));
     document.getElementById("tabDashboard").setAttribute("aria-selected", String(tab === "dashboard"));
+    document.getElementById("tabDayFilter").setAttribute("aria-selected", String(tab === "day"));
     if (tab === "dashboard") renderDashboard();
+    if (tab === "day") renderDayFilter();
   }
 
   // ---------- render ----------
@@ -838,7 +882,7 @@
 
   function updateJobPreview(){
     var band = bandByKey(selectedBandKey());
-    document.getElementById("kmInTowField").hidden = band.type !== "perkm";
+    document.getElementById("kmInTowField").hidden = band.type === "fixed";
     document.getElementById("fixedAmountField").hidden = band.type !== "fixed";
     var draft = {
       band: band.key,
@@ -930,10 +974,16 @@
   function initForms(){
     document.getElementById("jobDate").value = todayStr();
     document.getElementById("expDate").value = todayStr();
+    document.getElementById("dayFilterDate").value = todayStr();
     document.getElementById("bandGroup").innerHTML = bandGroupFragment("0-25");
 
     document.getElementById("bandGroup").addEventListener("change", updateJobPreview);
     document.getElementById("kmInTow").addEventListener("input", function(){
+      if (selectedBandKey() !== "fixed"){
+        var autoKey = bandKeyForKm(Number(this.value) || 0);
+        var radio = document.querySelector('input[name="band"][value="'+autoKey+'"]');
+        if (radio) radio.checked = true;
+      }
       var kd = document.getElementById("kmDriven");
       if (!kd.dataset.userEdited) kd.value = this.value;
       updateJobPreview();
@@ -993,6 +1043,8 @@
 
     document.getElementById("tabLedger").addEventListener("click", function(){ showTab("ledger"); });
     document.getElementById("tabDashboard").addEventListener("click", function(){ showTab("dashboard"); });
+    document.getElementById("tabDayFilter").addEventListener("click", function(){ showTab("day"); });
+    document.getElementById("dayFilterDate").addEventListener("change", renderDayFilter);
   }
 
   function start(){
