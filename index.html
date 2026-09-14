@@ -24,6 +24,8 @@
     --danger:#B5432B;
     --danger-soft:#F7E1DA;
     --focus:#0B63C5;
+    --chart-a:#C97A00;
+    --chart-b:#2C5FAD;
     --radius:10px;
   }
   @media (prefers-color-scheme: dark){
@@ -43,6 +45,8 @@
       --danger:#F0917A;
       --danger-soft:#3B2019;
       --focus:#6BB3FF;
+      --chart-a:#C27E10;
+      --chart-b:#5B93E0;
     }
   }
   :root[data-theme="dark"]{
@@ -61,6 +65,8 @@
     --danger:#F0917A;
     --danger-soft:#3B2019;
     --focus:#6BB3FF;
+    --chart-a:#C27E10;
+    --chart-b:#5B93E0;
   }
 
   *{box-sizing:border-box;}
@@ -98,6 +104,16 @@
   .spec-plate > div:first-child{ border-left:none; }
   .spec-plate dt{ font-size:0.62rem; letter-spacing:0.09em; text-transform:uppercase; color:var(--ink-soft); }
   .spec-plate dd{ margin:0; font-family:"IBM Plex Mono", monospace; font-weight:600; font-size:0.85rem; }
+
+  /* Tabs */
+  .tab-bar{ display:flex; gap:6px; border-bottom:1px solid var(--line); }
+  .tab-btn{
+    font-family:"Oswald", sans-serif; text-transform:uppercase; letter-spacing:0.04em;
+    font-size:0.85rem; font-weight:600; color:var(--ink-soft);
+    background:none; border:none; padding:10px 4px; cursor:pointer;
+    border-bottom:3px solid transparent; margin-bottom:-1px;
+  }
+  .tab-btn[aria-selected="true"]{ color:var(--ink); border-bottom-color:var(--accent); }
 
   /* Week nav */
   .week-nav{
@@ -215,6 +231,26 @@
 
   .foot-note{ text-align:center; color:var(--ink-soft); font-size:0.78rem; padding-top:6px; }
 
+  /* Dashboard */
+  .chart-panel{ display:flex; flex-direction:column; gap:10px; }
+  .chart-head{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; }
+  .chart-head h2{ font-size:1.05rem; text-transform:uppercase; letter-spacing:0.04em; }
+  .legend{ display:flex; gap:14px; }
+  .legend-item{ display:flex; align-items:center; gap:6px; font-size:0.8rem; color:var(--ink-soft); }
+  .swatch{ width:11px; height:11px; border-radius:3px; display:inline-block; }
+  .chart-scroll{ overflow-x:auto; }
+  .chart-scroll svg{ min-width:480px; width:100%; height:auto; display:block; }
+  details.table-view{ margin-top:2px; }
+  details.table-view summary{ cursor:pointer; font-size:0.8rem; color:var(--accent); }
+  .dash-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:700px){ .dash-grid{ grid-template-columns:1fr; } }
+  .bar-list{ display:flex; flex-direction:column; gap:10px; }
+  .bar-row{ display:grid; grid-template-columns:104px 1fr 74px; align-items:center; gap:8px; font-size:0.84rem; }
+  .bar-label{ color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .bar-track{ background:var(--surface-2); border-radius:4px; height:10px; overflow:hidden; }
+  .bar-fill{ display:block; height:100%; border-radius:4px; min-width:2px; }
+  .bar-value{ text-align:right; font-weight:600; }
+
   [hidden]{ display:none !important; }
 </style>
 </head>
@@ -233,6 +269,13 @@
       <div><dt>Width</dt><dd>2.3&nbsp;m</dd></div>
     </dl>
   </header>
+
+  <div class="tab-bar" role="tablist" aria-label="View">
+    <button class="tab-btn" id="tabLedger" type="button" role="tab" aria-selected="true">Ledger</button>
+    <button class="tab-btn" id="tabDashboard" type="button" role="tab" aria-selected="false">Dashboard</button>
+  </div>
+
+  <section id="ledgerView">
 
   <nav class="week-nav">
     <button id="prevWeek" class="nav-btn" type="button" aria-label="Previous week">&#8249;</button>
@@ -367,6 +410,42 @@
         <tbody id="expensesBody"></tbody>
       </table>
     </div>
+  </section>
+
+  </section>
+
+  <section id="dashboardView" hidden>
+
+    <div class="stats" id="kpiGrid" aria-label="Lifetime summary"></div>
+
+    <div class="panel chart-panel">
+      <div class="chart-head">
+        <h2>Revenue vs expenses — last 8 weeks</h2>
+        <div class="legend" id="trendLegend"></div>
+      </div>
+      <div class="chart-scroll" id="trendChartWrap"></div>
+      <details class="table-view">
+        <summary>View as table</summary>
+        <div class="table-scroll">
+          <table class="data" id="trendTable">
+            <thead><tr><th>Week of</th><th class="num">Revenue</th><th class="num">Expenses</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+
+    <div class="dash-grid">
+      <div class="panel">
+        <h2>Jobs by type — last 8 weeks</h2>
+        <div class="bar-list" id="bandBreakdown"></div>
+      </div>
+      <div class="panel">
+        <h2>Expenses by category — last 8 weeks</h2>
+        <div class="bar-list" id="categoryBreakdown"></div>
+      </div>
+    </div>
+
   </section>
 
   <p class="foot-note">Weeks run Monday–Sunday. Rates shown are the ones baked into this calculator — edit the code to update them if they change.</p>
@@ -524,6 +603,148 @@
         '<span><b>'+b.label+'</b><em>'+b.sub+'</em></span>' +
         '</label>';
     }).join("");
+  }
+
+  // ---------- dashboard aggregation ----------
+  function weeksWindow(n){
+    var weeks = [];
+    for (var i = -(n-1); i <= 0; i++){ weeks.push(aggregateWeek(weekRangeForOffset(i))); }
+    return weeks;
+  }
+  function aggregateWeek(range){
+    var jobs = state.jobs.filter(function(j){ return inRange(j.date, range.start, range.end); });
+    var expenses = state.expenses.filter(function(e){ return inRange(e.date, range.start, range.end); });
+    var revenue = jobs.reduce(function(s,j){ return s + computeJobPrice(j).total; }, 0);
+    var expenseTotal = expenses.reduce(function(s,e){ return s + (Number(e.amount)||0); }, 0);
+    return { range:range, jobs:jobs, expenses:expenses, revenue:revenue, expenseTotal:expenseTotal };
+  }
+  function lifetimeStats(){
+    var jobs = state.jobs, expenses = state.expenses;
+    var revenue = jobs.reduce(function(s,j){ return s + computeJobPrice(j).total; }, 0);
+    var expenseTotal = expenses.reduce(function(s,e){ return s + (Number(e.amount)||0); }, 0);
+    var avgPerJob = jobs.length ? revenue / jobs.length : 0;
+    var weekMap = {};
+    jobs.forEach(function(j){
+      var mon = toDateStr(mondayOf(parseLocalDate(j.date)));
+      weekMap[mon] = (weekMap[mon]||0) + computeJobPrice(j).total;
+    });
+    var bestWeekRevenue = 0;
+    Object.keys(weekMap).forEach(function(k){ if (weekMap[k] > bestWeekRevenue) bestWeekRevenue = weekMap[k]; });
+    return { jobsCount:jobs.length, revenue:revenue, expenseTotal:expenseTotal, net:revenue-expenseTotal, avgPerJob:avgPerJob, bestWeekRevenue:bestWeekRevenue };
+  }
+  function bandBreakdown(weeks){
+    var counts = {};
+    weeks.forEach(function(w){ w.jobs.forEach(function(j){ counts[j.band] = (counts[j.band]||0) + 1; }); });
+    return BANDS.map(function(b){ return { label:b.label, value: counts[b.key]||0 }; });
+  }
+  function categoryBreakdown(weeks){
+    var totals = {};
+    weeks.forEach(function(w){ w.expenses.forEach(function(e){ totals[e.category] = (totals[e.category]||0) + (Number(e.amount)||0); }); });
+    return Object.keys(totals).map(function(k){ return { label:k, value:totals[k] }; })
+      .sort(function(a,b){ return b.value - a.value; });
+  }
+  function niceCeil(v){
+    if (v <= 0) return 10;
+    var mag = Math.pow(10, Math.floor(Math.log10(v)));
+    var norm = v / mag;
+    var niceNorm = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10;
+    return niceNorm * mag;
+  }
+  function fmtMoneyShort(v){ return "$" + Math.round(v).toLocaleString("en-AU"); }
+  function weekShortLabel(range){ return range.start.toLocaleDateString("en-AU", { day:"numeric", month:"short" }); }
+
+  function kpiFragment(){
+    var s = lifetimeStats();
+    var tiles = [
+      { label:"Lifetime jobs", value:String(s.jobsCount), cls:"" },
+      { label:"Lifetime revenue", value:fmtMoney(s.revenue), cls:"success" },
+      { label:"Lifetime expenses", value:fmtMoney(s.expenseTotal), cls:"danger" },
+      { label:"Lifetime net", value:fmtMoney(s.net), cls: s.net>=0 ? "success" : "danger" },
+      { label:"Avg revenue / job", value:fmtMoney(s.avgPerJob), cls:"" },
+      { label:"Best week (revenue)", value:fmtMoney(s.bestWeekRevenue), cls:"success" }
+    ];
+    return tiles.map(function(t){
+      return '<div class="stat '+t.cls+'"><span class="label">'+t.label+'</span><span class="value num">'+t.value+'</span></div>';
+    }).join("");
+  }
+
+  function legendFragment(){
+    return '<span class="legend-item"><span class="swatch" style="background:var(--chart-a)"></span>Revenue</span>' +
+           '<span class="legend-item"><span class="swatch" style="background:var(--chart-b)"></span>Expenses</span>';
+  }
+
+  function trendChartSVG(weeks){
+    var W = 640, H = 220, padL = 46, padR = 12, padT = 14, padB = 30;
+    var innerW = W - padL - padR, innerH = H - padT - padB;
+    var n = weeks.length;
+    var maxVal = 1;
+    weeks.forEach(function(w){ maxVal = Math.max(maxVal, w.revenue, w.expenseTotal); });
+    var niceMax = niceCeil(maxVal);
+    var groupW = innerW / n;
+    var barW = Math.min(20, groupW * 0.3);
+
+    var gridLines = "";
+    var ticks = 4;
+    for (var t=0; t<=ticks; t++){
+      var yVal = niceMax * t / ticks;
+      var y = padT + innerH - (yVal/niceMax) * innerH;
+      gridLines += '<line x1="'+padL+'" y1="'+y+'" x2="'+(W-padR)+'" y2="'+y+'" style="stroke:var(--line);stroke-width:1"/>';
+      gridLines += '<text x="'+(padL-8)+'" y="'+(y+3)+'" text-anchor="end" font-size="9.5" style="fill:var(--ink-soft);font-family:\'IBM Plex Mono\',monospace">'+fmtMoneyShort(yVal)+'</text>';
+    }
+
+    var bars = "";
+    weeks.forEach(function(w, i){
+      var gx = padL + i*groupW;
+      var labelX = gx + groupW/2;
+      var revH = (w.revenue/niceMax) * innerH;
+      var expH = (w.expenseTotal/niceMax) * innerH;
+      var revX = labelX - barW - 2;
+      var expX = labelX + 2;
+      var revY = padT + innerH - revH;
+      var expY = padT + innerH - expH;
+      var wLabel = escapeHtml(weekShortLabel(w.range));
+      bars += '<rect x="'+revX+'" y="'+revY+'" width="'+barW+'" height="'+Math.max(revH,0.5)+'" rx="3" style="fill:var(--chart-a)"><title>Week of '+wLabel+' — Revenue: '+fmtMoney(w.revenue)+'</title></rect>';
+      bars += '<rect x="'+expX+'" y="'+expY+'" width="'+barW+'" height="'+Math.max(expH,0.5)+'" rx="3" style="fill:var(--chart-b)"><title>Week of '+wLabel+' — Expenses: '+fmtMoney(w.expenseTotal)+'</title></rect>';
+      bars += '<text x="'+labelX+'" y="'+(H-8)+'" text-anchor="middle" font-size="9.5" style="fill:var(--ink-soft);font-family:\'IBM Plex Sans\',sans-serif">'+wLabel+'</text>';
+    });
+
+    return '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Revenue and expenses, last 8 weeks">' +
+      gridLines + bars +
+      '<line x1="'+padL+'" y1="'+(padT+innerH)+'" x2="'+(W-padR)+'" y2="'+(padT+innerH)+'" style="stroke:var(--ink-soft);stroke-width:1"/>' +
+      '</svg>';
+  }
+
+  function barListFragment(items, colorVar, formatValue){
+    var max = Math.max.apply(null, items.map(function(i){ return i.value; }).concat([1]));
+    if (!items.length){ return '<p class="foot-note" style="padding:0;">No data in this window yet.</p>'; }
+    return items.map(function(it){
+      var pct = max > 0 ? Math.max(2, Math.round((it.value/max)*100)) : 2;
+      return '<div class="bar-row">' +
+        '<span class="bar-label">'+escapeHtml(it.label)+'</span>' +
+        '<span class="bar-track"><span class="bar-fill" style="width:'+pct+'%;background:'+colorVar+'"></span></span>' +
+        '<span class="bar-value num">'+formatValue(it.value)+'</span>' +
+        '</div>';
+    }).join("");
+  }
+
+  function renderDashboard(){
+    var weeks = weeksWindow(8);
+    document.getElementById("kpiGrid").innerHTML = kpiFragment();
+    document.getElementById("trendLegend").innerHTML = legendFragment();
+    document.getElementById("trendChartWrap").innerHTML = trendChartSVG(weeks);
+    document.querySelector("#trendTable tbody").innerHTML = weeks.map(function(w){
+      return '<tr><td>'+escapeHtml(weekShortLabel(w.range))+'</td><td class="num">'+fmtMoney(w.revenue)+'</td><td class="num">'+fmtMoney(w.expenseTotal)+'</td></tr>';
+    }).join("");
+    document.getElementById("bandBreakdown").innerHTML = barListFragment(bandBreakdown(weeks), "var(--chart-a)", function(v){ return String(v); });
+    document.getElementById("categoryBreakdown").innerHTML = barListFragment(categoryBreakdown(weeks), "var(--chart-b)", fmtMoney);
+  }
+
+  function showTab(tab){
+    document.getElementById("ledgerView").hidden = tab !== "ledger";
+    document.getElementById("dashboardView").hidden = tab !== "dashboard";
+    document.getElementById("tabLedger").setAttribute("aria-selected", String(tab === "ledger"));
+    document.getElementById("tabDashboard").setAttribute("aria-selected", String(tab === "dashboard"));
+    if (tab === "dashboard") renderDashboard();
   }
 
   // ---------- render ----------
@@ -701,6 +922,9 @@
 
     document.getElementById("prevWeek").addEventListener("click", function(){ weekOffset -= 1; renderAll(); });
     document.getElementById("nextWeek").addEventListener("click", function(){ if (weekOffset < 0){ weekOffset += 1; renderAll(); } });
+
+    document.getElementById("tabLedger").addEventListener("click", function(){ showTab("ledger"); });
+    document.getElementById("tabDashboard").addEventListener("click", function(){ showTab("dashboard"); });
   }
 
   function stashDraftBeforeUnload(){
