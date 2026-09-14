@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tow Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#181B1F;
+    --ink-soft:#4B5157;
+    --paper:#E9EBEC;
+    --surface:#FFFFFF;
+    --surface-2:#F3F4F5;
+    --line:#D6D9DB;
+    --accent:#C97A00;
+    --accent-fill:#F5A300;
+    --accent-ink:#241900;
+    --accent-soft:#FCE7BF;
+    --success:#1F6F43;
+    --success-soft:#DCEFE2;
+    --danger:#B5432B;
+    --danger-soft:#F7E1DA;
+    --focus:#0B63C5;
+    --radius:10px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ink:#EEEFEF;
+      --ink-soft:#AEB4B9;
+      --paper:#121417;
+      --surface:#1B1F23;
+      --surface-2:#22262B;
+      --line:#33383D;
+      --accent:#FFB733;
+      --accent-fill:#FFB733;
+      --accent-ink:#221800;
+      --accent-soft:#3A2C0C;
+      --success:#59C98A;
+      --success-soft:#183826;
+      --danger:#F0917A;
+      --danger-soft:#3B2019;
+      --focus:#6BB3FF;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ink:#EEEFEF;
+    --ink-soft:#AEB4B9;
+    --paper:#121417;
+    --surface:#1B1F23;
+    --surface-2:#22262B;
+    --line:#33383D;
+    --accent:#FFB733;
+    --accent-fill:#FFB733;
+    --accent-ink:#221800;
+    --accent-soft:#3A2C0C;
+    --success:#59C98A;
+    --success-soft:#183826;
+    --danger:#F0917A;
+    --danger-soft:#3B2019;
+    --focus:#6BB3FF;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    padding-inline:16px;
+    padding-block:20px 48px;
+    line-height:1.45;
+  }
+  .num{ font-family:"IBM Plex Mono", ui-monospace, monospace; font-variant-numeric:tabular-nums; }
+  h1,h2{ font-family:"Oswald", "IBM Plex Sans", sans-serif; text-wrap:balance; margin:0; }
+  a{ color:var(--accent); }
+
+  .page{ max-width:920px; margin-inline:auto; display:flex; flex-direction:column; gap:20px; }
+
+  /* Masthead */
+  .masthead{
+    display:flex; flex-wrap:wrap; gap:16px 24px; justify-content:space-between; align-items:flex-end;
+    border-bottom:3px solid var(--ink);
+    padding-bottom:14px;
+  }
+  .eyebrow{
+    margin:0 0 2px; font-size:0.72rem; font-weight:600; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--accent);
+  }
+  .masthead h1{ font-size:clamp(1.7rem, 5vw, 2.4rem); font-weight:700; letter-spacing:0.01em; text-transform:uppercase; }
+  .spec-plate{
+    display:grid; grid-auto-flow:column; gap:0;
+    border:1.5px solid var(--ink); border-radius:6px; overflow:hidden;
+    background:var(--surface); margin:0;
+  }
+  .spec-plate > div{ padding:6px 12px; border-left:1.5px solid var(--ink); text-align:center; }
+  .spec-plate > div:first-child{ border-left:none; }
+  .spec-plate dt{ font-size:0.62rem; letter-spacing:0.09em; text-transform:uppercase; color:var(--ink-soft); }
+  .spec-plate dd{ margin:0; font-family:"IBM Plex Mono", monospace; font-weight:600; font-size:0.85rem; }
+
+  /* Week nav */
+  .week-nav{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+    padding:8px 10px;
+  }
+  .nav-btn{
+    min-width:44px; min-height:44px; border-radius:8px; border:1px solid var(--line);
+    background:var(--surface-2); color:var(--ink); font-size:1.1rem; cursor:pointer;
+  }
+  .nav-btn:hover{ border-color:var(--accent); }
+  .nav-btn:disabled{ opacity:0.4; cursor:not-allowed; }
+  .week-label{ font-weight:600; text-align:center; font-size:0.95rem; }
+  .week-label .tag{ display:block; font-size:0.68rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-soft); font-weight:500; }
+
+  /* Stats */
+  .stats{ display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; }
+  @media (max-width:560px){ .stats{ grid-template-columns:repeat(2, 1fr); } }
+  .stat{
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+    padding:12px 14px; display:flex; flex-direction:column; gap:4px;
+  }
+  .stat .label{ font-size:0.68rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-soft); }
+  .stat .value{ font-family:"IBM Plex Mono", monospace; font-weight:600; font-size:1.3rem; font-variant-numeric:tabular-nums; }
+  .stat.success .value{ color:var(--success); }
+  .stat.danger .value{ color:var(--danger); }
+
+  .notice{
+    border-radius:var(--radius); padding:10px 14px; font-size:0.88rem;
+    background:var(--accent-soft); border:1px solid var(--accent); color:var(--ink);
+    display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; justify-content:space-between;
+  }
+
+  /* Forms */
+  .forms-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
+  @media (max-width:700px){ .forms-grid{ grid-template-columns:1fr; } }
+  .panel{
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px; display:flex; flex-direction:column; gap:12px;
+  }
+  .panel h2{ font-size:1.05rem; text-transform:uppercase; letter-spacing:0.04em; }
+  .field{ display:flex; flex-direction:column; gap:5px; }
+  .field label{ font-size:0.78rem; font-weight:600; color:var(--ink-soft); }
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  input[type="date"], input[type="number"], input[type="text"], select, textarea{
+    width:100%; padding:10px 11px; border-radius:8px; border:1px solid var(--line);
+    background:var(--surface-2); color:var(--ink); font:inherit; font-size:0.95rem;
+    min-height:44px;
+  }
+  textarea{ min-height:60px; resize:vertical; font-family:inherit; }
+  input:focus, select:focus, textarea:focus, button:focus-visible{
+    outline:2px solid var(--focus); outline-offset:1px;
+  }
+  .band-group{ display:flex; flex-wrap:wrap; gap:6px; }
+  .band-chip{
+    position:relative;
+  }
+  .band-chip input{ position:absolute; opacity:0; inset:0; cursor:pointer; }
+  .band-chip span{
+    display:flex; flex-direction:column; padding:8px 10px; border-radius:8px; border:1.5px solid var(--line);
+    background:var(--surface-2); font-size:0.8rem; cursor:pointer; min-width:96px;
+  }
+  .band-chip span b{ font-size:0.82rem; }
+  .band-chip span em{ font-style:normal; color:var(--ink-soft); font-size:0.7rem; font-family:"IBM Plex Mono", monospace; }
+  .band-chip input:checked + span{ border-color:var(--accent); background:var(--accent-soft); }
+  .band-chip input:focus-visible + span{ outline:2px solid var(--focus); outline-offset:1px; }
+
+  .price-preview{
+    background:var(--surface-2); border:1px dashed var(--line); border-radius:8px;
+    padding:10px 12px; font-size:0.86rem; display:flex; flex-direction:column; gap:2px;
+  }
+  .price-preview .total{ font-family:"IBM Plex Mono", monospace; font-weight:600; font-size:1.15rem; }
+
+  .btn{
+    min-height:46px; border-radius:9px; border:1px solid var(--line); background:var(--surface-2);
+    color:var(--ink); font:inherit; font-weight:600; cursor:pointer; padding:0 16px;
+  }
+  .btn:hover{ border-color:var(--accent); }
+  .btn-accent{ background:var(--accent-fill); border-color:var(--accent-fill); color:var(--accent-ink); }
+  .btn-accent:hover{ filter:brightness(1.05); }
+  .link-btn{ background:none; border:none; color:var(--accent); text-decoration:underline; cursor:pointer; font:inherit; padding:0; }
+
+  details.rate-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:4px 16px 14px;
+  }
+  details.rate-card summary{ cursor:pointer; padding:12px 0; font-weight:600; font-family:"Oswald", sans-serif; text-transform:uppercase; letter-spacing:0.03em; }
+  .rate-table{ width:100%; border-collapse:collapse; font-size:0.86rem; }
+  .rate-table th, .rate-table td{ text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+  .rate-table td:last-child, .rate-table th:last-child{ text-align:right; font-family:"IBM Plex Mono", monospace; }
+
+  .ledger h2{ font-size:1.05rem; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:8px; }
+  .ledger > h2:not(:first-child){ margin-top:22px; }
+  .table-scroll{ overflow-x:auto; border:1px solid var(--line); border-radius:var(--radius); background:var(--surface); }
+  table.data{ width:100%; border-collapse:collapse; min-width:560px; font-size:0.84rem; }
+  table.data th{
+    text-align:left; padding:9px 10px; background:var(--surface-2); color:var(--ink-soft);
+    font-size:0.68rem; letter-spacing:0.06em; text-transform:uppercase; white-space:nowrap;
+    border-bottom:1px solid var(--line);
+  }
+  table.data td{ padding:9px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  table.data td.wrap{ white-space:normal; min-width:120px; }
+  table.data tr:last-child td{ border-bottom:none; }
+  table.data td.num, table.data th.num{ text-align:right; font-family:"IBM Plex Mono", monospace; font-variant-numeric:tabular-nums; }
+  .empty-row td{ text-align:center; color:var(--ink-soft); padding:18px 10px; }
+  .example-chip{
+    display:inline-block; font-size:0.62rem; letter-spacing:0.05em; text-transform:uppercase;
+    background:var(--accent-soft); color:var(--accent); border-radius:4px; padding:1px 5px; margin-left:6px;
+  }
+  .del-btn{
+    border:1px solid var(--line); background:var(--surface-2); border-radius:6px; color:var(--danger);
+    cursor:pointer; min-width:32px; min-height:32px; font-size:0.9rem; line-height:1;
+  }
+  .del-btn:hover{ border-color:var(--danger); }
+
+  .foot-note{ text-align:center; color:var(--ink-soft); font-size:0.78rem; padding-top:6px; }
+
+  [hidden]{ display:none !important; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="masthead">
+    <div>
+      <p class="eyebrow">Roadside Recovery Ledger</p>
+      <h1>Tow Ledger</h1>
+    </div>
+    <dl class="spec-plate" aria-label="Vehicle limits">
+      <div><dt>Weight</dt><dd>0–4.5&nbsp;t</dd></div>
+      <div><dt>Height</dt><dd>2.8&nbsp;m</dd></div>
+      <div><dt>Length</dt><dd>6&nbsp;m</dd></div>
+      <div><dt>Width</dt><dd>2.3&nbsp;m</dd></div>
+    </dl>
+  </header>
+
+  <nav class="week-nav">
+    <button id="prevWeek" class="nav-btn" type="button" aria-label="Previous week">&#8249;</button>
+    <div class="week-label" id="weekLabel"></div>
+    <button id="nextWeek" class="nav-btn" type="button" aria-label="Next week">&#8250;</button>
+  </nav>
+
+  <section class="stats" id="stats" aria-label="Weekly summary"></section>
+
+  <div id="readOnlyNotice" class="notice" hidden>
+    <span>You're viewing a read-only copy of this ledger — changes won't be saved.</span>
+  </div>
+  <div id="localOnlyNotice" class="notice" hidden>
+    <span>Saving to this browser only right now — open the same link in this browser to keep your data.</span>
+  </div>
+  <div id="exampleNotice" class="notice" hidden>
+    <span>Showing example rows so you can see how it works.</span>
+    <button id="clearExamples" class="link-btn" type="button">Clear example rows</button>
+  </div>
+
+  <div class="forms-grid">
+    <form id="jobForm" class="panel" autocomplete="off">
+      <h2>Log a tow job</h2>
+
+      <div class="field">
+        <label for="jobDate">Date</label>
+        <input type="date" id="jobDate" required>
+      </div>
+
+      <div class="field">
+        <label>Job type / distance band</label>
+        <div class="band-group" id="bandGroup" role="radiogroup" aria-label="Job type"></div>
+      </div>
+
+      <div class="field" id="kmInTowField" hidden>
+        <label for="kmInTow">Distance in tow (km) — sets the price</label>
+        <input type="number" id="kmInTow" min="0" step="0.1" inputmode="decimal">
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label for="kmDriven">Total km driven (this job)</label>
+          <input type="number" id="kmDriven" min="0" step="0.1" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="hoursWorked">Hours on this job</label>
+          <input type="number" id="hoursWorked" min="0" step="0.1" inputmode="decimal">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="waitMinutes">Waiting time (minutes)</label>
+        <input type="number" id="waitMinutes" min="0" step="1" inputmode="numeric" value="0">
+      </div>
+
+      <div class="field">
+        <label for="jobNotes">Notes (customer, rego, suburb…)</label>
+        <textarea id="jobNotes" placeholder="Optional"></textarea>
+      </div>
+
+      <div class="price-preview" id="jobPreview"></div>
+
+      <button type="submit" class="btn btn-accent">Add job</button>
+    </form>
+
+    <form id="expenseForm" class="panel" autocomplete="off">
+      <h2>Log an expense</h2>
+
+      <div class="field">
+        <label for="expDate">Date</label>
+        <input type="date" id="expDate" required>
+      </div>
+
+      <div class="field">
+        <label for="expCategory">Category</label>
+        <select id="expCategory">
+          <option>Fuel</option>
+          <option>Maintenance &amp; repairs</option>
+          <option>Tolls / parking</option>
+          <option>Insurance</option>
+          <option>Registration</option>
+          <option>Other</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="expAmount">Amount ($, incl. GST)</label>
+        <input type="number" id="expAmount" min="0" step="0.01" inputmode="decimal" required>
+      </div>
+
+      <div class="field">
+        <label for="expNote">Note</label>
+        <input type="text" id="expNote" placeholder="Optional">
+      </div>
+
+      <button type="submit" class="btn">Add expense</button>
+    </form>
+  </div>
+
+  <details class="rate-card">
+    <summary>Rate card (GST incl.)</summary>
+    <table class="rate-table">
+      <tr><th>0–25&nbsp;km from pickup</th><td>$110.73 / job</td></tr>
+      <tr><th>26–50&nbsp;km from pickup</th><td>$137.68 / job</td></tr>
+      <tr><th>51–100&nbsp;km from pickup</th><td>$4.49 / km in tow</td></tr>
+      <tr><th>101+&nbsp;km from pickup</th><td>$3.82 / km in tow</td></tr>
+      <tr><th>Attend, no tow given</th><td>$61.60</td></tr>
+      <tr><th>Waiting, once over 15 min</th><td>$38.50 / 25 min block</td></tr>
+    </table>
+  </details>
+
+  <section class="ledger">
+    <h2>Jobs this week</h2>
+    <div class="table-scroll">
+      <table class="data">
+        <thead>
+          <tr>
+            <th>Date</th><th>Type</th><th class="num">Km tow</th><th class="num">Km driven</th>
+            <th class="num">Hours</th><th class="num">Wait</th><th class="num">Total</th><th>Notes</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="jobsBody"></tbody>
+      </table>
+    </div>
+
+    <h2>Expenses this week</h2>
+    <div class="table-scroll">
+      <table class="data">
+        <thead>
+          <tr><th>Date</th><th>Category</th><th class="num">Amount</th><th>Note</th><th></th></tr>
+        </thead>
+        <tbody id="expensesBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <p class="foot-note">Weeks run Monday–Sunday. Rates shown are the ones baked into this calculator — edit the code to update them if they change.</p>
+</div>
+
+<script id="ledger-state" type="application/json">{"jobs":[{"id":"ex1","date":"2026-09-14","band":"51-100","kmInTow":72,"kmDriven":80,"hours":2.5,"waitMinutes":10,"notes":"Sedan, breakdown on M1 — example row","isExample":true,"createdAt":"2026-09-14T08:00:00.000Z"},{"id":"ex2","date":"2026-09-13","band":"0-25","kmInTow":0,"kmDriven":18,"hours":1,"waitMinutes":40,"notes":"Driveway recovery — example row","isExample":true,"createdAt":"2026-09-13T08:00:00.000Z"},{"id":"ex3","date":"2026-09-11","band":"attend","kmInTow":0,"kmDriven":12,"hours":0.5,"waitMinutes":0,"notes":"Customer's roadside assist arrived first — example row","isExample":true,"createdAt":"2026-09-11T08:00:00.000Z"}],"expenses":[{"id":"exe1","date":"2026-09-13","category":"Fuel","amount":95.4,"note":"Example row","isExample":true,"createdAt":"2026-09-13T09:00:00.000Z"},{"id":"exe2","date":"2026-09-12","category":"Tolls / parking","amount":14.2,"note":"Example row","isExample":true,"createdAt":"2026-09-12T09:00:00.000Z"}]}</script>
+
+<script>
+(function(){
+  "use strict";
+
+  var RATES = {
+    band0_25: 110.73,
+    band26_50: 137.68,
+    band51_100PerKm: 4.49,
+    band101PlusPerKm: 3.82,
+    attendOnly: 61.60,
+    waitBlockRate: 38.50,
+    waitBlockMinutes: 25,
+    waitGraceMinutes: 15
+  };
+
+  var BANDS = [
+    { key:"attend", label:"Attend only", sub:"$"+RATES.attendOnly.toFixed(2)+" flat", type:"flat", rate:RATES.attendOnly },
+    { key:"0-25",   label:"0–25 km",    sub:"$"+RATES.band0_25.toFixed(2)+" flat", type:"flat", rate:RATES.band0_25 },
+    { key:"26-50",  label:"26–50 km",   sub:"$"+RATES.band26_50.toFixed(2)+" flat", type:"flat", rate:RATES.band26_50 },
+    { key:"51-100", label:"51–100 km",  sub:"$"+RATES.band51_100PerKm.toFixed(2)+"/km", type:"perkm", rate:RATES.band51_100PerKm },
+    { key:"101+",   label:"101+ km",         sub:"$"+RATES.band101PlusPerKm.toFixed(2)+"/km", type:"perkm", rate:RATES.band101PlusPerKm }
+  ];
+  function bandByKey(k){ for (var i=0;i<BANDS.length;i++){ if (BANDS[i].key===k) return BANDS[i]; } return BANDS[1]; }
+
+  var currencyFmt = new Intl.NumberFormat("en-AU", { style:"currency", currency:"AUD" });
+  function fmtMoney(n){ return currencyFmt.format(round2(n)); }
+  function round2(n){ return Math.round((n + Number.EPSILON) * 100) / 100; }
+  var dateLabelFmt = new Intl.DateTimeFormat("en-AU", { weekday:"short", day:"numeric", month:"short" });
+  function fmtDateLabel(s){ return dateLabelFmt.format(parseLocalDate(s)); }
+  function todayStr(){ return toDateStr(new Date()); }
+  function toDateStr(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+  function parseLocalDate(s){ var p=s.split("-").map(Number); return new Date(p[0], p[1]-1, p[2]); }
+  function mondayOf(d){ var dow=d.getDay(); var diff=(dow+6)%7; var m=new Date(d); m.setDate(d.getDate()-diff); m.setHours(0,0,0,0); return m; }
+  function weekRangeForOffset(offset){
+    var mon = mondayOf(new Date());
+    mon.setDate(mon.getDate() + offset*7);
+    var sun = new Date(mon); sun.setDate(mon.getDate()+6);
+    return { start:mon, end:sun };
+  }
+  function inRange(dateStr, start, end){ var d=parseLocalDate(dateStr); return d>=start && d<=end; }
+  function uid(){ return "id"+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+  function escapeHtml(s){
+    return String(s==null?"":s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  function computeJobPrice(job){
+    var band = bandByKey(job.band);
+    var base = band.type === "flat" ? band.rate : (Number(job.kmInTow)||0) * band.rate;
+    var wm = Number(job.waitMinutes) || 0;
+    var waitBlocks = 0, waitFee = 0;
+    if (wm > RATES.waitGraceMinutes){
+      waitBlocks = Math.ceil(wm / RATES.waitBlockMinutes);
+      waitFee = waitBlocks * RATES.waitBlockRate;
+    }
+    return { base: round2(base), waitBlocks: waitBlocks, waitFee: round2(waitFee), total: round2(base + waitFee) };
+  }
+
+  // ---------- state ----------
+  var state = JSON.parse(document.getElementById("ledger-state").textContent);
+  var weekOffset = 0;
+  var readOnly = false;
+  var localOnly = false;
+  var artifactCap = null;
+  var pendingSave = false;
+
+  try {
+    var stashed = sessionStorage.getItem("tow-ledger-draft");
+    if (stashed) {
+      var parsed = JSON.parse(stashed);
+      if (typeof parsed.weekOffset === "number") weekOffset = parsed.weekOffset;
+      sessionStorage.removeItem("tow-ledger-draft");
+    }
+  } catch(e){}
+
+  // ---------- fragment templates ----------
+  function statsFragment(jobs, expenses){
+    var revenue = jobs.reduce(function(s,j){ return s + computeJobPrice(j).total; }, 0);
+    var kmDriven = jobs.reduce(function(s,j){ return s + (Number(j.kmDriven)||0); }, 0);
+    var hours = jobs.reduce(function(s,j){ return s + (Number(j.hours)||0); }, 0);
+    var expenseTotal = expenses.reduce(function(s,e){ return s + (Number(e.amount)||0); }, 0);
+    var net = revenue - expenseTotal;
+    var tiles = [
+      { label:"Jobs done", value: String(jobs.length), cls:"" },
+      { label:"Revenue", value: fmtMoney(revenue), cls:"success" },
+      { label:"Km driven", value: kmDriven.toLocaleString("en-AU", {maximumFractionDigits:1}), cls:"" },
+      { label:"Hours worked", value: hours.toLocaleString("en-AU", {maximumFractionDigits:1}), cls:"" },
+      { label:"Expenses", value: fmtMoney(expenseTotal), cls:"danger" },
+      { label:"Net", value: fmtMoney(net), cls: net>=0 ? "success" : "danger" }
+    ];
+    return tiles.map(function(t){
+      return '<div class="stat '+t.cls+'"><span class="label">'+t.label+'</span><span class="value num">'+t.value+'</span></div>';
+    }).join("");
+  }
+
+  function jobRowsFragment(jobs){
+    if (!jobs.length){
+      return '<tr class="empty-row"><td colspan="9">No jobs logged for this week yet.</td></tr>';
+    }
+    return jobs.slice().sort(function(a,b){ return a.date < b.date ? 1 : -1; }).map(function(j){
+      var band = bandByKey(j.band);
+      var price = computeJobPrice(j);
+      var kmTow = band.type === "perkm" ? (Number(j.kmInTow)||0).toLocaleString("en-AU",{maximumFractionDigits:1}) : "—";
+      var exampleChip = j.isExample ? '<span class="example-chip">Example</span>' : "";
+      return '<tr data-id="'+j.id+'">' +
+        '<td>'+fmtDateLabel(j.date)+'</td>' +
+        '<td>'+escapeHtml(band.label)+exampleChip+'</td>' +
+        '<td class="num">'+kmTow+'</td>' +
+        '<td class="num">'+(Number(j.kmDriven)||0).toLocaleString("en-AU",{maximumFractionDigits:1})+'</td>' +
+        '<td class="num">'+(Number(j.hours)||0).toLocaleString("en-AU",{maximumFractionDigits:1})+'</td>' +
+        '<td class="num">'+(price.waitFee>0 ? fmtMoney(price.waitFee) : "—")+'</td>' +
+        '<td class="num">'+fmtMoney(price.total)+'</td>' +
+        '<td class="wrap">'+escapeHtml(j.notes||"")+'</td>' +
+        '<td><button class="del-btn" type="button" data-del-job="'+j.id+'" aria-label="Delete job">×</button></td>' +
+        '</tr>';
+    }).join("");
+  }
+
+  function expenseRowsFragment(expenses){
+    if (!expenses.length){
+      return '<tr class="empty-row"><td colspan="5">No expenses logged for this week yet.</td></tr>';
+    }
+    return expenses.slice().sort(function(a,b){ return a.date < b.date ? 1 : -1; }).map(function(e){
+      var exampleChip = e.isExample ? '<span class="example-chip">Example</span>' : "";
+      return '<tr data-id="'+e.id+'">' +
+        '<td>'+fmtDateLabel(e.date)+'</td>' +
+        '<td>'+escapeHtml(e.category)+exampleChip+'</td>' +
+        '<td class="num">'+fmtMoney(Number(e.amount)||0)+'</td>' +
+        '<td class="wrap">'+escapeHtml(e.note||"")+'</td>' +
+        '<td><button class="del-btn" type="button" data-del-exp="'+e.id+'" aria-label="Delete expense">×</button></td>' +
+        '</tr>';
+    }).join("");
+  }
+
+  function weekLabelFragment(range, offset){
+    var opts = { day:"numeric", month:"short" };
+    var startS = range.start.toLocaleDateString("en-AU", opts);
+    var endS = range.end.toLocaleDateString("en-AU", opts);
+    var tag = offset === 0 ? "This week" : (offset === -1 ? "Last week" : (offset === 1 ? "Next week" : (offset<0 ? (-offset)+" weeks ago" : "In "+offset+" weeks")));
+    return '<span class="tag">'+tag+'</span>'+startS+' – '+endS;
+  }
+
+  function bandGroupFragment(selected){
+    return BANDS.map(function(b){
+      return '<label class="band-chip">' +
+        '<input type="radio" name="band" value="'+b.key+'" '+(b.key===selected?"checked":"")+'>' +
+        '<span><b>'+b.label+'</b><em>'+b.sub+'</em></span>' +
+        '</label>';
+    }).join("");
+  }
+
+  // ---------- render ----------
+  function currentWeekJobsAndExpenses(){
+    var range = weekRangeForOffset(weekOffset);
+    var jobs = state.jobs.filter(function(j){ return inRange(j.date, range.start, range.end); });
+    var expenses = state.expenses.filter(function(e){ return inRange(e.date, range.start, range.end); });
+    return { range:range, jobs:jobs, expenses:expenses };
+  }
+
+  function renderAll(){
+    var ctx = currentWeekJobsAndExpenses();
+    document.getElementById("weekLabel").innerHTML = weekLabelFragment(ctx.range, weekOffset);
+    document.getElementById("stats").innerHTML = statsFragment(ctx.jobs, ctx.expenses);
+    document.getElementById("jobsBody").innerHTML = jobRowsFragment(ctx.jobs);
+    document.getElementById("expensesBody").innerHTML = expenseRowsFragment(ctx.expenses);
+    document.getElementById("nextWeek").disabled = weekOffset >= 0;
+
+    var hasExamples = state.jobs.some(function(j){return j.isExample;}) || state.expenses.some(function(e){return e.isExample;});
+    document.getElementById("exampleNotice").hidden = !hasExamples;
+
+    attachRowHandlers();
+    updateJobPreview();
+  }
+
+  function attachRowHandlers(){
+    document.querySelectorAll("[data-del-job]").forEach(function(btn){
+      btn.onclick = function(){ deleteJob(btn.getAttribute("data-del-job")); };
+    });
+    document.querySelectorAll("[data-del-exp]").forEach(function(btn){
+      btn.onclick = function(){ deleteExpense(btn.getAttribute("data-del-exp")); };
+    });
+  }
+
+  function selectedBandKey(){
+    var checked = document.querySelector('input[name="band"]:checked');
+    return checked ? checked.value : "0-25";
+  }
+
+  function updateJobPreview(){
+    var band = bandByKey(selectedBandKey());
+    document.getElementById("kmInTowField").hidden = band.type !== "perkm";
+    var draft = {
+      band: band.key,
+      kmInTow: document.getElementById("kmInTow").value,
+      waitMinutes: document.getElementById("waitMinutes").value
+    };
+    var price = computeJobPrice(draft);
+    var lines = [];
+    if (band.type === "perkm"){
+      lines.push((Number(draft.kmInTow)||0)+' km × $'+band.rate.toFixed(2)+' = '+fmtMoney(price.base));
+    } else {
+      lines.push('Flat rate: '+fmtMoney(price.base));
+    }
+    if (price.waitFee > 0){
+      lines.push('Waiting: '+price.waitBlocks+' × $'+RATES.waitBlockRate.toFixed(2)+' = '+fmtMoney(price.waitFee));
+    }
+    document.getElementById("jobPreview").innerHTML =
+      lines.map(function(l){ return '<span>'+escapeHtml(l)+'</span>'; }).join("") +
+      '<span class="total num">Total: '+fmtMoney(price.total)+'</span>';
+  }
+
+  // ---------- persistence ----------
+  function buildFullHTML(){
+    var doc = document.documentElement.cloneNode(true);
+    var stateScript = doc.querySelector("#ledger-state");
+    stateScript.textContent = JSON.stringify(state).replace(/</g, "\\u003c");
+    return "<!doctype html>\n" + doc.outerHTML;
+  }
+
+  function save(){
+    if (readOnly) return;
+    if (artifactCap){
+      pendingSave = true;
+      artifactCap.publish(buildFullHTML()).then(function(){
+        // view reloads automatically on success
+      }).catch(function(err){
+        pendingSave = false;
+        if (err && (err.code === "not_writer" || err.code === "not_granted" || err.code === "consent_required")){
+          readOnly = true;
+          document.getElementById("readOnlyNotice").hidden = false;
+          renderAll();
+        } else if (err && err.code === "conflict"){
+          // the shell reloads this view to the winning version; nothing else to do
+        } else {
+          renderAll();
+        }
+      });
+    } else {
+      localOnly = true;
+      try { localStorage.setItem("tow-ledger-state", JSON.stringify(state)); } catch(e){}
+      document.getElementById("localOnlyNotice").hidden = false;
+      renderAll();
+    }
+  }
+
+  // ---------- actions ----------
+  function addJob(job){
+    state.jobs.push(job);
+    save();
+  }
+  function deleteJob(id){
+    state.jobs = state.jobs.filter(function(j){ return j.id !== id; });
+    save();
+  }
+  function addExpense(exp){
+    state.expenses.push(exp);
+    save();
+  }
+  function deleteExpense(id){
+    state.expenses = state.expenses.filter(function(e){ return e.id !== id; });
+    save();
+  }
+  function clearExamples(){
+    state.jobs = state.jobs.filter(function(j){ return !j.isExample; });
+    state.expenses = state.expenses.filter(function(e){ return !e.isExample; });
+    save();
+  }
+
+  // ---------- wiring ----------
+  function initForms(){
+    document.getElementById("jobDate").value = todayStr();
+    document.getElementById("expDate").value = todayStr();
+    document.getElementById("bandGroup").innerHTML = bandGroupFragment("0-25");
+
+    document.getElementById("bandGroup").addEventListener("change", updateJobPreview);
+    document.getElementById("kmInTow").addEventListener("input", function(){
+      var kd = document.getElementById("kmDriven");
+      if (!kd.dataset.userEdited) kd.value = this.value;
+      updateJobPreview();
+    });
+    document.getElementById("kmDriven").addEventListener("input", function(){ this.dataset.userEdited = "1"; });
+    document.getElementById("waitMinutes").addEventListener("input", updateJobPreview);
+
+    document.getElementById("jobForm").addEventListener("submit", function(ev){
+      ev.preventDefault();
+      var band = bandByKey(selectedBandKey());
+      var job = {
+        id: uid(),
+        date: document.getElementById("jobDate").value || todayStr(),
+        band: band.key,
+        kmInTow: Number(document.getElementById("kmInTow").value) || 0,
+        kmDriven: Number(document.getElementById("kmDriven").value) || 0,
+        hours: Number(document.getElementById("hoursWorked").value) || 0,
+        waitMinutes: Number(document.getElementById("waitMinutes").value) || 0,
+        notes: document.getElementById("jobNotes").value.trim(),
+        isExample: false,
+        createdAt: new Date().toISOString()
+      };
+      addJob(job);
+      ev.target.reset();
+      document.getElementById("jobDate").value = todayStr();
+      document.getElementById("bandGroup").innerHTML = bandGroupFragment("0-25");
+      document.getElementById("kmDriven").dataset.userEdited = "";
+      updateJobPreview();
+    });
+
+    document.getElementById("expenseForm").addEventListener("submit", function(ev){
+      ev.preventDefault();
+      var exp = {
+        id: uid(),
+        date: document.getElementById("expDate").value || todayStr(),
+        category: document.getElementById("expCategory").value,
+        amount: Number(document.getElementById("expAmount").value) || 0,
+        note: document.getElementById("expNote").value.trim(),
+        isExample: false,
+        createdAt: new Date().toISOString()
+      };
+      addExpense(exp);
+      ev.target.reset();
+      document.getElementById("expDate").value = todayStr();
+    });
+
+    document.getElementById("clearExamples").addEventListener("click", clearExamples);
+
+    document.getElementById("prevWeek").addEventListener("click", function(){ weekOffset -= 1; renderAll(); });
+    document.getElementById("nextWeek").addEventListener("click", function(){ if (weekOffset < 0){ weekOffset += 1; renderAll(); } });
+  }
+
+  function stashDraftBeforeUnload(){
+    try { sessionStorage.setItem("tow-ledger-draft", JSON.stringify({ weekOffset: weekOffset })); } catch(e){}
+  }
+
+  function start(hotData){
+    if (hotData && typeof hotData.weekOffset === "number") weekOffset = hotData.weekOffset;
+    initForms();
+    renderAll();
+
+    if (window.claude && window.claude.use){
+      window.claude.use("artifact").then(function(cap){
+        artifactCap = cap;
+        if (!cap){
+          try {
+            var saved = localStorage.getItem("tow-ledger-state");
+            if (saved){ state = JSON.parse(saved); renderAll(); }
+          } catch(e){}
+          document.getElementById("localOnlyNotice").hidden = false;
+        }
+      }).catch(function(){ artifactCap = null; });
+    }
+
+    if (window.claude && window.claude.hot && window.claude.hot.snapshot){
+      window.claude.hot.snapshot(function(){ return { weekOffset: weekOffset }; });
+    }
+    window.addEventListener("pagehide", stashDraftBeforeUnload);
+  }
+
+  if (window.claude && window.claude.hot && window.claude.hot.ready){
+    window.claude.hot.ready(start);
+  } else {
+    start((window.claude && window.claude.hot && window.claude.hot.data) || {});
+  }
+})();
+</script>
+</body>
+</html>
