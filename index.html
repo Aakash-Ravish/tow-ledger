@@ -451,7 +451,7 @@
   <p class="foot-note">Weeks run Monday–Sunday. Rates shown are the ones baked into this calculator — edit the code to update them if they change.</p>
 </div>
 
-<script id="ledger-state" type="application/json">{"jobs":[{"id":"ex1","date":"2026-09-14","band":"51-100","kmInTow":72,"kmDriven":80,"hours":2.5,"waitMinutes":10,"notes":"Sedan, breakdown on M1 — example row","isExample":true,"createdAt":"2026-09-14T08:00:00.000Z"},{"id":"ex2","date":"2026-09-13","band":"0-25","kmInTow":0,"kmDriven":18,"hours":1,"waitMinutes":40,"notes":"Driveway recovery — example row","isExample":true,"createdAt":"2026-09-13T08:00:00.000Z"},{"id":"ex3","date":"2026-09-11","band":"attend","kmInTow":0,"kmDriven":12,"hours":0.5,"waitMinutes":0,"notes":"Customer's roadside assist arrived first — example row","isExample":true,"createdAt":"2026-09-11T08:00:00.000Z"}],"expenses":[{"id":"exe1","date":"2026-09-13","category":"Fuel","amount":95.4,"note":"Example row","isExample":true,"createdAt":"2026-09-13T09:00:00.000Z"},{"id":"exe2","date":"2026-09-12","category":"Tolls / parking","amount":14.2,"note":"Example row","isExample":true,"createdAt":"2026-09-12T09:00:00.000Z"}]}</script>
+<script id="ledger-state" type="application/json">{"jobs":[{"id":"ex1","date":"2026-09-14","band":"51-100","kmInTow":72,"kmDriven":80,"hours":2.5,"waitMinutes":10,"notes":"Sedan, breakdown on M1 — example row","isExample":true,"createdAt":"2026-09-14T08:00:00.000Z"},{"id":"ex2","date":"2026-09-13","band":"0-25","kmInTow":0,"kmDriven":18,"hours":1,"waitMinutes":40,"notes":"Driveway recovery — example row","isExample":true,"createdAt":"2026-09-13T08:00:00.000Z"},{"id":"ex3","date":"2026-09-11","band":"attend","kmInTow":0,"kmDriven":12,"hours":0.5,"waitMinutes":0,"notes":"Customer's roadside assist arrived first — example row","isExample":true,"createdAt":"2026-09-11T08:00:00.000Z"},{"id":"idmu104oc0zxomyk","date":"2026-09-14","band":"26-50","kmInTow":0,"kmDriven":37,"hours":5,"waitMinutes":0,"notes":"","isExample":false,"createdAt":"2026-09-14T08:49:24.529Z"}],"expenses":[{"id":"exe1","date":"2026-09-13","category":"Fuel","amount":95.4,"note":"Example row","isExample":true,"createdAt":"2026-09-13T09:00:00.000Z"},{"id":"exe2","date":"2026-09-12","category":"Tolls / parking","amount":14.2,"note":"Example row","isExample":true,"createdAt":"2026-09-12T09:00:00.000Z"}]}</script>
 
 <script>
 (function(){
@@ -842,25 +842,33 @@
   }
 
   // ---------- actions ----------
+  // Each action re-renders the DOM to match the new state BEFORE save() clones
+  // it for publish — otherwise the published snapshot briefly shows the
+  // pre-change view even though the embedded JSON already has the new data.
   function addJob(job){
     state.jobs.push(job);
+    renderAll();
     save();
   }
   function deleteJob(id){
     state.jobs = state.jobs.filter(function(j){ return j.id !== id; });
+    renderAll();
     save();
   }
   function addExpense(exp){
     state.expenses.push(exp);
+    renderAll();
     save();
   }
   function deleteExpense(id){
     state.expenses = state.expenses.filter(function(e){ return e.id !== id; });
+    renderAll();
     save();
   }
   function clearExamples(){
     state.jobs = state.jobs.filter(function(j){ return !j.isExample; });
     state.expenses = state.expenses.filter(function(e){ return !e.isExample; });
+    renderAll();
     save();
   }
 
