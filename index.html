@@ -219,10 +219,6 @@
   table.data tr:last-child td{ border-bottom:none; }
   table.data td.num, table.data th.num{ text-align:right; font-family:"IBM Plex Mono", monospace; font-variant-numeric:tabular-nums; }
   .empty-row td{ text-align:center; color:var(--ink-soft); padding:18px 10px; }
-  .example-chip{
-    display:inline-block; font-size:0.62rem; letter-spacing:0.05em; text-transform:uppercase;
-    background:var(--accent-soft); color:var(--accent); border-radius:4px; padding:1px 5px; margin-left:6px;
-  }
   .del-btn{
     border:1px solid var(--line); background:var(--surface-2); border-radius:6px; color:var(--danger);
     cursor:pointer; min-width:32px; min-height:32px; font-size:0.9rem; line-height:1;
@@ -279,21 +275,20 @@
 
   <nav class="week-nav">
     <button id="prevWeek" class="nav-btn" type="button" aria-label="Previous week">&#8249;</button>
-    <div class="week-label" id="weekLabel"></div>
-    <button id="nextWeek" class="nav-btn" type="button" aria-label="Next week">&#8250;</button>
+    <div class="week-label" id="weekLabel"><span class="tag">This week</span>14 Sep – 20 Sep</div>
+    <button id="nextWeek" class="nav-btn" type="button" aria-label="Next week" disabled>&#8250;</button>
   </nav>
 
-  <section class="stats" id="stats" aria-label="Weekly summary"></section>
+  <section class="stats" id="stats" aria-label="Weekly summary"><div class="stat "><span class="label">Jobs done</span><span class="value num">2</span></div><div class="stat success"><span class="label">Revenue</span><span class="value num">$460.96</span></div><div class="stat "><span class="label">Km driven</span><span class="value num">117</span></div><div class="stat "><span class="label">Hours worked</span><span class="value num">7.5</span></div><div class="stat danger"><span class="label">Expenses</span><span class="value num">$0.00</span></div><div class="stat success"><span class="label">Net</span><span class="value num">$460.96</span></div></section>
 
-  <div id="readOnlyNotice" class="notice" hidden>
-    <span>You're viewing a read-only copy of this ledger — changes won't be saved.</span>
+  <div id="setupNotice" class="notice" hidden>
+    <span>Not connected to a database yet — add your Supabase URL and key in the code to start saving real data.</span>
   </div>
-  <div id="localOnlyNotice" class="notice" hidden>
-    <span>Saving to this browser only right now — open the same link in this browser to keep your data.</span>
+  <div id="errorNotice" class="notice" hidden>
+    <span id="errorNoticeText">Something went wrong saving or loading data.</span>
   </div>
-  <div id="exampleNotice" class="notice" hidden>
-    <span>Showing example rows so you can see how it works.</span>
-    <button id="clearExamples" class="link-btn" type="button">Clear example rows</button>
+  <div id="loadingNotice" class="notice" hidden>
+    <span>Loading…</span>
   </div>
 
   <div class="forms-grid">
@@ -307,7 +302,7 @@
 
       <div class="field">
         <label>Job type / distance band</label>
-        <div class="band-group" id="bandGroup" role="radiogroup" aria-label="Job type"></div>
+        <div class="band-group" id="bandGroup" role="radiogroup" aria-label="Job type"><label class="band-chip"><input type="radio" name="band" value="attend"><span><b>Attend only</b><em>$61.60 flat</em></span></label><label class="band-chip"><input type="radio" name="band" value="0-25" checked><span><b>0–25 km</b><em>$110.73 flat</em></span></label><label class="band-chip"><input type="radio" name="band" value="26-50"><span><b>26–50 km</b><em>$137.68 flat</em></span></label><label class="band-chip"><input type="radio" name="band" value="51-100"><span><b>51–100 km</b><em>$4.49/km</em></span></label><label class="band-chip"><input type="radio" name="band" value="101+"><span><b>101+ km</b><em>$3.82/km</em></span></label></div>
       </div>
 
       <div class="field" id="kmInTowField" hidden>
@@ -336,7 +331,7 @@
         <textarea id="jobNotes" placeholder="Optional"></textarea>
       </div>
 
-      <div class="price-preview" id="jobPreview"></div>
+      <div class="price-preview" id="jobPreview"><span>Flat rate: $110.73</span><span class="total num">Total: $110.73</span></div>
 
       <button type="submit" class="btn btn-accent">Add job</button>
     </form>
@@ -378,13 +373,13 @@
   <details class="rate-card">
     <summary>Rate card (GST incl.)</summary>
     <table class="rate-table">
-      <tr><th>0–25&nbsp;km from pickup</th><td>$110.73 / job</td></tr>
+      <tbody><tr><th>0–25&nbsp;km from pickup</th><td>$110.73 / job</td></tr>
       <tr><th>26–50&nbsp;km from pickup</th><td>$137.68 / job</td></tr>
       <tr><th>51–100&nbsp;km from pickup</th><td>$4.49 / km in tow</td></tr>
       <tr><th>101+&nbsp;km from pickup</th><td>$3.82 / km in tow</td></tr>
       <tr><th>Attend, no tow given</th><td>$61.60</td></tr>
       <tr><th>Waiting, once over 15 min</th><td>$38.50 / 25 min block</td></tr>
-    </table>
+    </tbody></table>
   </details>
 
   <section class="ledger">
@@ -407,7 +402,7 @@
         <thead>
           <tr><th>Date</th><th>Category</th><th class="num">Amount</th><th>Note</th><th></th></tr>
         </thead>
-        <tbody id="expensesBody"></tbody>
+        <tbody id="expensesBody"><tr class="empty-row"><td colspan="5">No expenses logged for this week yet.</td></tr></tbody>
       </table>
     </div>
   </section>
@@ -451,7 +446,19 @@
   <p class="foot-note">Weeks run Monday–Sunday. Rates shown are the ones baked into this calculator — edit the code to update them if they change.</p>
 </div>
 
-<script id="ledger-state" type="application/json">{"jobs":[{"id":"ex1","date":"2026-09-14","band":"51-100","kmInTow":72,"kmDriven":80,"hours":2.5,"waitMinutes":10,"notes":"Sedan, breakdown on M1 — example row","isExample":true,"createdAt":"2026-09-14T08:00:00.000Z"},{"id":"ex2","date":"2026-09-13","band":"0-25","kmInTow":0,"kmDriven":18,"hours":1,"waitMinutes":40,"notes":"Driveway recovery — example row","isExample":true,"createdAt":"2026-09-13T08:00:00.000Z"},{"id":"ex3","date":"2026-09-11","band":"attend","kmInTow":0,"kmDriven":12,"hours":0.5,"waitMinutes":0,"notes":"Customer's roadside assist arrived first — example row","isExample":true,"createdAt":"2026-09-11T08:00:00.000Z"},{"id":"idmu104oc0zxomyk","date":"2026-09-14","band":"26-50","kmInTow":0,"kmDriven":37,"hours":5,"waitMinutes":0,"notes":"","isExample":false,"createdAt":"2026-09-14T08:49:24.529Z"}],"expenses":[{"id":"exe1","date":"2026-09-13","category":"Fuel","amount":95.4,"note":"Example row","isExample":true,"createdAt":"2026-09-13T09:00:00.000Z"},{"id":"exe2","date":"2026-09-12","category":"Tolls / parking","amount":14.2,"note":"Example row","isExample":true,"createdAt":"2026-09-12T09:00:00.000Z"}]}</script>
+<!--
+  SETUP: paste your Supabase project URL and anon public key below.
+  Get them from your Supabase project: Settings -> API.
+  The anon key is DESIGNED to be public/embedded in client apps like this one —
+  it is not a secret. Access to your data is controlled by the Row Level
+  Security policies you set on the jobs/expenses tables in Supabase, not by
+  hiding this key.
+-->
+<script>
+  window.SUPABASE_URL = "YOUR_SUPABASE_URL";
+  window.SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
 (function(){
@@ -493,7 +500,6 @@
     return { start:mon, end:sun };
   }
   function inRange(dateStr, start, end){ var d=parseLocalDate(dateStr); return d>=start && d<=end; }
-  function uid(){ return "id"+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
   function escapeHtml(s){
     return String(s==null?"":s).replace(/[&<>"']/g, function(c){
       return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
@@ -513,21 +519,23 @@
   }
 
   // ---------- state ----------
-  var state = JSON.parse(document.getElementById("ledger-state").textContent);
+  var state = { jobs: [], expenses: [] };
   var weekOffset = 0;
-  var readOnly = false;
-  var localOnly = false;
-  var artifactCap = null;
-  var pendingSave = false;
+  var sb = (window.SUPABASE_URL && window.SUPABASE_URL.indexOf("YOUR_") !== 0 && window.supabase)
+    ? window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY)
+    : null;
 
-  try {
-    var stashed = sessionStorage.getItem("tow-ledger-draft");
-    if (stashed) {
-      var parsed = JSON.parse(stashed);
-      if (typeof parsed.weekOffset === "number") weekOffset = parsed.weekOffset;
-      sessionStorage.removeItem("tow-ledger-draft");
-    }
-  } catch(e){}
+  function mapJobFromDb(r){
+    return { id:r.id, date:r.date, band:r.band, kmInTow:Number(r.km_in_tow)||0, kmDriven:Number(r.km_driven)||0, hours:Number(r.hours)||0, waitMinutes:Number(r.wait_minutes)||0, notes:r.notes||"" };
+  }
+  function mapExpenseFromDb(r){
+    return { id:r.id, date:r.date, category:r.category, amount:Number(r.amount)||0, note:r.note||"" };
+  }
+  function showNotice(id, show){ document.getElementById(id).hidden = !show; }
+  function showError(message){
+    document.getElementById("errorNoticeText").textContent = message;
+    showNotice("errorNotice", true);
+  }
 
   // ---------- fragment templates ----------
   function statsFragment(jobs, expenses){
@@ -557,10 +565,9 @@
       var band = bandByKey(j.band);
       var price = computeJobPrice(j);
       var kmTow = band.type === "perkm" ? (Number(j.kmInTow)||0).toLocaleString("en-AU",{maximumFractionDigits:1}) : "—";
-      var exampleChip = j.isExample ? '<span class="example-chip">Example</span>' : "";
       return '<tr data-id="'+j.id+'">' +
         '<td>'+fmtDateLabel(j.date)+'</td>' +
-        '<td>'+escapeHtml(band.label)+exampleChip+'</td>' +
+        '<td>'+escapeHtml(band.label)+'</td>' +
         '<td class="num">'+kmTow+'</td>' +
         '<td class="num">'+(Number(j.kmDriven)||0).toLocaleString("en-AU",{maximumFractionDigits:1})+'</td>' +
         '<td class="num">'+(Number(j.hours)||0).toLocaleString("en-AU",{maximumFractionDigits:1})+'</td>' +
@@ -577,10 +584,9 @@
       return '<tr class="empty-row"><td colspan="5">No expenses logged for this week yet.</td></tr>';
     }
     return expenses.slice().sort(function(a,b){ return a.date < b.date ? 1 : -1; }).map(function(e){
-      var exampleChip = e.isExample ? '<span class="example-chip">Example</span>' : "";
       return '<tr data-id="'+e.id+'">' +
         '<td>'+fmtDateLabel(e.date)+'</td>' +
-        '<td>'+escapeHtml(e.category)+exampleChip+'</td>' +
+        '<td>'+escapeHtml(e.category)+'</td>' +
         '<td class="num">'+fmtMoney(Number(e.amount)||0)+'</td>' +
         '<td class="wrap">'+escapeHtml(e.note||"")+'</td>' +
         '<td><button class="del-btn" type="button" data-del-exp="'+e.id+'" aria-label="Delete expense">×</button></td>' +
@@ -763,9 +769,6 @@
     document.getElementById("expensesBody").innerHTML = expenseRowsFragment(ctx.expenses);
     document.getElementById("nextWeek").disabled = weekOffset >= 0;
 
-    var hasExamples = state.jobs.some(function(j){return j.isExample;}) || state.expenses.some(function(e){return e.isExample;});
-    document.getElementById("exampleNotice").hidden = !hasExamples;
-
     attachRowHandlers();
     updateJobPreview();
   }
@@ -807,69 +810,65 @@
       '<span class="total num">Total: '+fmtMoney(price.total)+'</span>';
   }
 
-  // ---------- persistence ----------
-  function buildFullHTML(){
-    var doc = document.documentElement.cloneNode(true);
-    var stateScript = doc.querySelector("#ledger-state");
-    stateScript.textContent = JSON.stringify(state).replace(/</g, "\\u003c");
-    return "<!doctype html>\n" + doc.outerHTML;
-  }
-
-  function save(){
-    if (readOnly) return;
-    if (artifactCap){
-      pendingSave = true;
-      artifactCap.publish(buildFullHTML()).then(function(){
-        // view reloads automatically on success
-      }).catch(function(err){
-        pendingSave = false;
-        if (err && (err.code === "not_writer" || err.code === "not_granted" || err.code === "consent_required")){
-          readOnly = true;
-          document.getElementById("readOnlyNotice").hidden = false;
-          renderAll();
-        } else if (err && err.code === "conflict"){
-          // the shell reloads this view to the winning version; nothing else to do
-        } else {
-          renderAll();
-        }
-      });
-    } else {
-      localOnly = true;
-      try { localStorage.setItem("tow-ledger-state", JSON.stringify(state)); } catch(e){}
-      document.getElementById("localOnlyNotice").hidden = false;
+  // ---------- persistence (Supabase) ----------
+  function loadData(){
+    if (!sb){ showNotice("setupNotice", true); renderAll(); return; }
+    showNotice("loadingNotice", true);
+    Promise.all([
+      sb.from("jobs").select("*").order("date", { ascending:false }),
+      sb.from("expenses").select("*").order("date", { ascending:false })
+    ]).then(function(results){
+      showNotice("loadingNotice", false);
+      var jobsRes = results[0], expRes = results[1];
+      if (jobsRes.error || expRes.error){
+        showError((jobsRes.error || expRes.error).message);
+        return;
+      }
+      showNotice("errorNotice", false);
+      state.jobs = jobsRes.data.map(mapJobFromDb);
+      state.expenses = expRes.data.map(mapExpenseFromDb);
       renderAll();
-    }
+    }).catch(function(err){
+      showNotice("loadingNotice", false);
+      showError(String(err && err.message || err));
+    });
   }
 
   // ---------- actions ----------
-  // Each action re-renders the DOM to match the new state BEFORE save() clones
-  // it for publish — otherwise the published snapshot briefly shows the
-  // pre-change view even though the embedded JSON already has the new data.
-  function addJob(job){
-    state.jobs.push(job);
-    renderAll();
-    save();
+  function addJob(job, onDone){
+    if (!sb) return;
+    sb.from("jobs").insert({
+      date: job.date, band: job.band, km_in_tow: job.kmInTow, km_driven: job.kmDriven,
+      hours: job.hours, wait_minutes: job.waitMinutes, notes: job.notes
+    }).then(function(res){
+      if (res.error){ showError(res.error.message); if (onDone) onDone(); return; }
+      loadData();
+      if (onDone) onDone();
+    });
   }
   function deleteJob(id){
-    state.jobs = state.jobs.filter(function(j){ return j.id !== id; });
-    renderAll();
-    save();
+    if (!sb) return;
+    sb.from("jobs").delete().eq("id", id).then(function(res){
+      if (res.error){ showError(res.error.message); return; }
+      loadData();
+    });
   }
-  function addExpense(exp){
-    state.expenses.push(exp);
-    renderAll();
-    save();
+  function addExpense(exp, onDone){
+    if (!sb) return;
+    sb.from("expenses").insert({
+      date: exp.date, category: exp.category, amount: exp.amount, note: exp.note
+    }).then(function(res){
+      if (res.error){ showError(res.error.message); if (onDone) onDone(); return; }
+      loadData();
+      if (onDone) onDone();
+    });
   }
   function deleteExpense(id){
-    state.expenses = state.expenses.filter(function(e){ return e.id !== id; });
-    renderAll();
-    save();
-  }
-  function clearExamples(){
-    state.jobs = state.jobs.filter(function(j){ return !j.isExample; });
-    state.expenses = state.expenses.filter(function(e){ return !e.isExample; });
-    renderAll();
-    save();
+    if (!sb) return;
+    sb.from("expenses").delete().eq("id", id).then(function(res){
+      if (res.error){ showError(res.error.message); return; }
+      loadData();
+    });
   }
 
   // ---------- wiring ----------
@@ -891,42 +890,42 @@
       ev.preventDefault();
       var band = bandByKey(selectedBandKey());
       var job = {
-        id: uid(),
         date: document.getElementById("jobDate").value || todayStr(),
         band: band.key,
         kmInTow: Number(document.getElementById("kmInTow").value) || 0,
         kmDriven: Number(document.getElementById("kmDriven").value) || 0,
         hours: Number(document.getElementById("hoursWorked").value) || 0,
         waitMinutes: Number(document.getElementById("waitMinutes").value) || 0,
-        notes: document.getElementById("jobNotes").value.trim(),
-        isExample: false,
-        createdAt: new Date().toISOString()
+        notes: document.getElementById("jobNotes").value.trim()
       };
-      addJob(job);
-      ev.target.reset();
-      document.getElementById("jobDate").value = todayStr();
-      document.getElementById("bandGroup").innerHTML = bandGroupFragment("0-25");
-      document.getElementById("kmDriven").dataset.userEdited = "";
-      updateJobPreview();
+      var submitBtn = ev.target.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      addJob(job, function(){
+        submitBtn.disabled = false;
+        ev.target.reset();
+        document.getElementById("jobDate").value = todayStr();
+        document.getElementById("bandGroup").innerHTML = bandGroupFragment("0-25");
+        document.getElementById("kmDriven").dataset.userEdited = "";
+        updateJobPreview();
+      });
     });
 
     document.getElementById("expenseForm").addEventListener("submit", function(ev){
       ev.preventDefault();
       var exp = {
-        id: uid(),
         date: document.getElementById("expDate").value || todayStr(),
         category: document.getElementById("expCategory").value,
         amount: Number(document.getElementById("expAmount").value) || 0,
-        note: document.getElementById("expNote").value.trim(),
-        isExample: false,
-        createdAt: new Date().toISOString()
+        note: document.getElementById("expNote").value.trim()
       };
-      addExpense(exp);
-      ev.target.reset();
-      document.getElementById("expDate").value = todayStr();
+      var submitBtn = ev.target.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      addExpense(exp, function(){
+        submitBtn.disabled = false;
+        ev.target.reset();
+        document.getElementById("expDate").value = todayStr();
+      });
     });
-
-    document.getElementById("clearExamples").addEventListener("click", clearExamples);
 
     document.getElementById("prevWeek").addEventListener("click", function(){ weekOffset -= 1; renderAll(); });
     document.getElementById("nextWeek").addEventListener("click", function(){ if (weekOffset < 0){ weekOffset += 1; renderAll(); } });
@@ -935,39 +934,12 @@
     document.getElementById("tabDashboard").addEventListener("click", function(){ showTab("dashboard"); });
   }
 
-  function stashDraftBeforeUnload(){
-    try { sessionStorage.setItem("tow-ledger-draft", JSON.stringify({ weekOffset: weekOffset })); } catch(e){}
-  }
-
-  function start(hotData){
-    if (hotData && typeof hotData.weekOffset === "number") weekOffset = hotData.weekOffset;
+  function start(){
     initForms();
-    renderAll();
-
-    if (window.claude && window.claude.use){
-      window.claude.use("artifact").then(function(cap){
-        artifactCap = cap;
-        if (!cap){
-          try {
-            var saved = localStorage.getItem("tow-ledger-state");
-            if (saved){ state = JSON.parse(saved); renderAll(); }
-          } catch(e){}
-          document.getElementById("localOnlyNotice").hidden = false;
-        }
-      }).catch(function(){ artifactCap = null; });
-    }
-
-    if (window.claude && window.claude.hot && window.claude.hot.snapshot){
-      window.claude.hot.snapshot(function(){ return { weekOffset: weekOffset }; });
-    }
-    window.addEventListener("pagehide", stashDraftBeforeUnload);
+    loadData();
   }
 
-  if (window.claude && window.claude.hot && window.claude.hot.ready){
-    window.claude.hot.ready(start);
-  } else {
-    start((window.claude && window.claude.hot && window.claude.hot.data) || {});
-  }
+  start();
 })();
 </script>
 </body>
